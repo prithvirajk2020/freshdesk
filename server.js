@@ -66,8 +66,10 @@ app.post("/api/create-ticket", async (req, res) => {
                     query: `cf_case_id:'${cleanCaseId}'`
                 }
             }
-        );
 
+
+        );
+        console.log("api called", searchResponse);
         const tickets = searchResponse.data.results || [];
 
         let billingExists = false;
