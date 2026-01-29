@@ -9,12 +9,12 @@ const app = express();
 // ================================
 
 // IMPORTANT: Use your EXACT Freshdesk portal URL
-const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
+
 
 // From Render Environment Variables
 const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
-
+const ALLOWED_ORIGIN = FRESHDESK_DOMAIN;
 // ================================
 // MIDDLEWARE (ORDER MATTERS)
 // ================================
