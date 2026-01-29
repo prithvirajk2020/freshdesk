@@ -1,3 +1,38 @@
+require("dotenv").config();
+
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
+
+const app = express();
+
+app.use(express.json());
+app.use(cors());
+
+const DOMAIN = process.env.FRESHDESK_DOMAIN;
+const API_KEY = process.env.FRESHDESK_API_KEY;
+const PORT = process.env.PORT || 3000;
+
+// ----------------------
+// Freshdesk Auth Header
+// ----------------------
+
+const AUTH_HEADER = {
+    Authorization: "Basic " + Buffer.from(API_KEY + ":X").toString("base64")
+};
+
+// ----------------------
+// Health Check
+// ----------------------
+
+app.get("/", (req, res) => {
+    res.send("Middleware Running ✅");
+});
+
+// ----------------------
+// Case Validation API
+// ----------------------
+
 app.post("/api/check-case", async (req, res) => {
 
     try {
@@ -26,9 +61,9 @@ app.post("/api/check-case", async (req, res) => {
         let billingExists = false;
         let serviceExists = false;
 
-        tickets.forEach(t => {
+        tickets.forEach(ticket => {
 
-            const cat = t.custom_fields?.cf_category?.toLowerCase();
+            const cat = ticket.custom_fields?.cf_category?.toLowerCase();
 
             if (cat === "billing") billingExists = true;
             if (cat === "service") serviceExists = true;
@@ -49,11 +84,20 @@ app.post("/api/check-case", async (req, res) => {
 
         return res.json({ blocked: false });
 
-    } catch (err) {
+    } catch (error) {
 
-        console.error(err);
+        console.error("ERROR:", error.response?.data || error.message);
+
         res.status(500).json({ error: "Server error" });
 
     }
 
+});
+
+// ----------------------
+// Start Server
+// ----------------------
+
+app.listen(PORT, () => {
+    console.log("Server running on port", PORT);
 });
