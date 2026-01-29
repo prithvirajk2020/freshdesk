@@ -24,23 +24,18 @@ const cors = require("cors");
 const app = express();
 
 app.use(express.json());
-app.use(cors({
-    origin: "*"
-}));
+app.use(cors({ origin: "*" }));
 
 const PORT = process.env.PORT || 3000;
 
-// Health check
 app.get("/", (req, res) => {
     res.send("Middleware Running");
 });
 
-// TEST API
-app.post("/api/log-case", (req, res) => {
+// TEST ENDPOINT
+app.post("/api/blur-test", (req, res) => {
 
-    const { caseId } = req.body;
-
-    console.log("RECEIVED FROM PORTAL:", caseId);
+    console.log("BLUR API CALLED ✅");
 
     res.json({
         success: true
