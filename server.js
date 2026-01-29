@@ -8,8 +8,10 @@ const app = express();
 // CONFIG
 // ================================
 
+// IMPORTANT: Use your EXACT Freshdesk portal URL
 const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
 
+// From Render Environment Variables
 const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 
@@ -17,18 +19,14 @@ const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 // MIDDLEWARE (ORDER MATTERS)
 // ================================
 
-// Enable JSON first
-app.use(express.json());
-
-// CORS MUST be before routes
+// Enable CORS FIRST
 app.use(cors({
     origin: ALLOWED_ORIGIN,
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-    credentials: false
+    methods: ["GET", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
 }));
 
-// Explicit OPTIONS handler (CRITICAL)
+// Handle OPTIONS preflight
 app.use((req, res, next) => {
     if (req.method === "OPTIONS") {
         return res.sendStatus(200);
@@ -40,21 +38,30 @@ app.use((req, res, next) => {
 // ROUTES
 // ================================
 
+// Health Check Route
 app.get("/", (req, res) => {
-    res.send("Freshdesk Validator Running ✅");
+    res.send("Freshdesk Duplicate Validator API Running ✅");
 });
 
-app.post("/api/blur-test", async (req, res) => {
+// VALIDATION ROUTE (GET)
+app.get("/api/blur-test", async (req, res) => {
 
-    const { caseId, category } = req.body;
+    const { caseId, category } = req.query;
+
+    console.log("Incoming request:", caseId, category);
 
     if (!caseId || !category) {
-        return res.status(400).json({ error: "Missing fields" });
+        return res.status(400).json({
+            error: "Missing caseId or category"
+        });
     }
 
     try {
 
+        // IMPORTANT: Replace API names if different in your Freshdesk
         const query = `cf_case_id:'${caseId}' AND cf_category:'${category}'`;
+
+        console.log("Freshdesk Query:", query);
 
         const response = await axios.get(
             `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets`,
@@ -70,21 +77,34 @@ app.post("/api/blur-test", async (req, res) => {
         const results = response.data.results;
 
         if (results.length > 0) {
-            return res.json({ exists: true });
+
+            console.log("Duplicate Found");
+
+            return res.json({
+                exists: true
+            });
         }
 
-        res.json({ exists: false });
+        console.log("No Duplicate");
 
-    } catch (err) {
+        res.json({
+            exists: false
+        });
 
-        console.error(err.response?.data || err.message);
+    } catch (error) {
 
-        res.status(500).json({ error: "Freshdesk search failed" });
+        console.error("Freshdesk API Error:",
+            error.response?.data || error.message
+        );
+
+        res.status(500).json({
+            error: "Freshdesk API failed"
+        });
     }
 });
 
 // ================================
-// START SERVER
+// SERVER START
 // ================================
 
 const PORT = process.env.PORT || 3000;
