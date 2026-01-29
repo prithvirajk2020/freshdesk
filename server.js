@@ -45,6 +45,7 @@ app.get("/", (req, res) => {
 
 // VALIDATION ROUTE (GET)
 app.get("/api/blur-test", async (req, res) => {
+    console.log("blur test api start");
 
     const { caseId, category } = req.query;
 
@@ -57,6 +58,8 @@ app.get("/api/blur-test", async (req, res) => {
     }
 
     try {
+
+        console.log("blur test api start try");
 
         // IMPORTANT: Replace API names if different in your Freshdesk
         const query = `cf_case_id:'${caseId}' AND cf_category:'${category}'`;
@@ -93,6 +96,8 @@ app.get("/api/blur-test", async (req, res) => {
 
     } catch (error) {
 
+        console.log("blur test api error");
+
         console.error("Freshdesk API Error:",
             error.response?.data || error.message
         );
@@ -108,6 +113,9 @@ app.get("/api/blur-test", async (req, res) => {
 // ================================
 
 const PORT = process.env.PORT || 3000;
+
+console.log("blur test api end");
+
 
 app.listen(PORT, () => {
     console.log("Server running on port", PORT);
