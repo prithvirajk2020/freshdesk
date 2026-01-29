@@ -18,97 +18,132 @@
 // app.listen(PORT, () => {
 //     console.log("Server running on port", PORT);
 // });
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+require("dotenv").config();
+
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
 
 const app = express();
+
+app.use(express.json());
+
+// Allow Freshdesk portal
+app.use(cors({
+    origin: "*"
+}));
+
+const DOMAIN = process.env.FRESHDESK_DOMAIN;
+const API_KEY = process.env.FRESHDESK_API_KEY;
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({
-    origin: ['https://yourdomain.freshdesk.com', 'https://*.freshdesk.com']
-}));
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// Simple in-memory cache
-const ticketCache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-// Replace with YOUR Freshdesk details
-const FRESHDESK = {
-    domain: process.env.FRESHDESK_DOMAIN || 'YOURDOMAIN.freshdesk.com',
-    apiKey: process.env.FRESHDESK_API_KEY || 'YOUR_API_KEY'
+// Freshdesk Auth
+const AUTH_HEADER = {
+    Authorization: "Basic " + Buffer.from(API_KEY + ":X").toString("base64")
 };
 
-app.get('/api/ping', (req, res) => {
-    res.json({ status: 'OK', message: 'Freshdesk middleware ready!' });
+// --------------------
+// Health Check
+// --------------------
+
+app.get("/", (req, res) => {
+    res.send("Freshdesk Middleware Running ✅");
 });
 
-app.post('/api/check-duplicate', async (req, res) => {
-    const { case_id, category } = req.body;
+// --------------------
+// Ping Test
+// --------------------
 
-    if (!case_id || !category) {
-        return res.status(400).json({ error: 'Missing case_id or category', exists: false });
-    }
+app.get("/api/ping", (req, res) => {
 
-    const key = `${case_id.trim().toLowerCase()}_${category.trim().toLowerCase()}`;
-    const now = Date.now();
-    const cached = ticketCache.get(key);
+    console.log("PING RECEIVED FROM PORTAL");
 
-    // Cache hit
-    if (cached && (now - cached.timestamp) < CACHE_TTL) {
-        return res.json({ exists: cached.exists });
-    }
+    res.json({
+        success: true
+    });
+
+});
+
+// --------------------
+// Duplicate Validation API
+// --------------------
+
+app.post("/api/check-duplicate", async (req, res) => {
 
     try {
-        // Search Freshdesk
-        const query = `cf_case_id:"${case_id}" cf_category:"${category}"`;
-        const url = `https://${FRESHDESK.domain}/api/v2/search/tickets?query="${encodeURIComponent(query)}"`;
 
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Basic ${Buffer.from(`${FRESHDESK.apiKey}:X`).toString('base64')}`,
-                'Content-Type': 'application/json'
+        const { case_id, category } = req.body;
+
+        if (!case_id || !category) {
+            return res.status(400).json({
+                error: "Missing parameters"
+            });
+        }
+
+        console.log("Checking:", case_id, category);
+
+        // Search by Case ID
+        const searchResponse = await axios.get(
+            `https://${DOMAIN}/api/v2/search/tickets`,
+            {
+                headers: AUTH_HEADER,
+                params: {
+                    query: `cf_case_id:'${case_id}'`
+                }
             }
+        );
+
+        const tickets = searchResponse.data.results || [];
+
+        const selectedCategory = category.toLowerCase();
+
+        // Today's 12:00 AM timestamp
+        const now = new Date();
+        const todayStart = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        ).getTime();
+
+        let duplicateFound = false;
+
+        tickets.forEach(ticket => {
+
+            const ticketCategory =
+                ticket.custom_fields?.cf_category?.toLowerCase();
+
+            if (!ticketCategory) return;
+
+            if (ticketCategory !== selectedCategory) return;
+
+            const createdTime = new Date(ticket.created_at).getTime();
+
+            if (createdTime >= todayStart) {
+                duplicateFound = true;
+            }
+
         });
 
-        const tickets = await response.json();
-        const exists = Array.isArray(tickets) && tickets.length > 0;
+        console.log("Duplicate:", duplicateFound);
 
-        // Cache result
-        ticketCache.set(key, { exists, timestamp: now });
-
-        res.json({ exists });
+        return res.json({
+            exists: duplicateFound
+        });
 
     } catch (error) {
-        console.error('Freshdesk error:', error.message);
-        res.json({ exists: false }); // Fail open
+
+        console.error("ERROR:", error.response?.data || error.message);
+
+        return res.status(500).json({
+            error: "Validation failed"
+        });
+
     }
+
 });
 
-// Cleanup cache hourly
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of ticketCache) {
-        if (now - value.timestamp > CACHE_TTL) {
-            ticketCache.delete(key);
-        }
-    }
-}, 3600000);
-
-app.get('/', (req, res) => {
-    res.json({
-        service: 'Freshdesk Duplicate Checker',
-        endpoints: {
-            ping: 'GET /api/ping',
-            check: 'POST /api/check-duplicate'
-        },
-        status: 'active'
-    });
-});
+// --------------------
 
 app.listen(PORT, () => {
-    console.log(`🚀 Running on port ${PORT}`);
-    console.log(`📍 https://freshdesk-xqpp.onrender.com`);
+    console.log("Server running on port", PORT);
 });
