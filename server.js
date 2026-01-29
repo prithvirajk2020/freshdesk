@@ -3,13 +3,22 @@ import axios from "axios";
 import cors from "cors";
 
 const app = express();
+const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
+const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 
-app.use(cors());
+app.use(cors({
+    origin: [
+        FRESHDESK_DOMAIN,
+        "https://companyname.freshdeskqa.com"
+    ],
+    methods: ["POST", "GET"],
+    allowedHeaders: ["Content-Type"]
+}));
+
 app.use(express.json());
 
 // ENV variables (Render Dashboard)
-const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
-const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
+
 
 app.post("/api/blur-test", async (req, res) => {
 
