@@ -47,7 +47,8 @@ app.get("/", (req, res) => {
 app.get("/api/blur-test", async (req, res) => {
     console.log("blur test api start");
 
-    const { caseId, category } = req.query;
+    const caseId = req.query.caseId || req.query.cf_case_id;
+    const category = req.query.category || req.query.cf_category;
 
     console.log("Incoming request:", caseId, category);
 
