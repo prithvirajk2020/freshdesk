@@ -1,7 +1,8 @@
 import express from "express";
 import axios from "axios";
 import cors from "cors";
-
+import dotenv from "dotenv";
+dotenv.config();
 const app = express();
 
 // ================================
@@ -96,9 +97,8 @@ app.get("/api/blur-test", async (req, res) => {
             `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets`,
             {
                 params: { query },
-                auth: {
-                    username: FRESHDESK_API_KEY, // RAW API KEY ONLY
-                    password: "X"
+                headers: {
+                    Authorization: `basic ${FRESHDESK_API_KEY}`,
                 }
             }
         );
