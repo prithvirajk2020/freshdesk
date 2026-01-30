@@ -5,30 +5,47 @@ import cors from "cors";
 const app = express();
 
 // ================================
-// CONFIG
+// STARTUP LOGS
 // ================================
 
-// IMPORTANT: Use your EXACT Freshdesk portal URL
+console.log("🚀 Freshdesk Validator Service Starting...");
 
+// ================================
+// ENV CONFIG
+// ================================
 
-// From Render Environment Variables
 const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
-const ALLOWED_ORIGIN = FRESHDESK_DOMAIN;
+
+// IMPORTANT: Must match Freshdesk portal URL
+const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
+
+// Validate ENV
+console.log("ENV CHECK:");
+console.log("FRESHDESK_DOMAIN:", FRESHDESK_DOMAIN ? "OK" : "MISSING");
+console.log("FRESHDESK_API_KEY:", FRESHDESK_API_KEY ? "OK" : "MISSING");
+
 // ================================
-// MIDDLEWARE (ORDER MATTERS)
+// MIDDLEWARE
 // ================================
 
-// Enable CORS FIRST
+// Log all requests
+app.use((req, res, next) => {
+    console.log("➡ Incoming:", req.method, req.originalUrl);
+    next();
+});
+
+// Enable CORS
 app.use(cors({
     origin: ALLOWED_ORIGIN,
     methods: ["GET", "OPTIONS"],
     allowedHeaders: ["Content-Type"]
 }));
 
-// Handle OPTIONS preflight
+// Preflight handler
 app.use((req, res, next) => {
     if (req.method === "OPTIONS") {
+        console.log("⚡ Preflight OPTIONS request");
         return res.sendStatus(200);
     }
     next();
@@ -38,21 +55,28 @@ app.use((req, res, next) => {
 // ROUTES
 // ================================
 
-// Health Check Route
+// Health check
 app.get("/", (req, res) => {
+    console.log("🏥 Health Check Hit");
     res.send("Freshdesk Duplicate Validator API Running ✅");
 });
 
-// VALIDATION ROUTE (GET)
+// Validation endpoint
 app.get("/api/blur-test", async (req, res) => {
-    console.log("blur test api start");
+
+    console.log("🔵 /api/blur-test START");
 
     const caseId = req.query.caseId || req.query.cf_case_id;
     const category = req.query.category || req.query.cf_category;
 
-    console.log("Incoming request:", caseId, category);
+    console.log("Received Params:");
+    console.log("caseId:", caseId);
+    console.log("category:", category);
 
     if (!caseId || !category) {
+
+        console.log("❌ Missing query parameters");
+
         return res.status(400).json({
             error: "Missing caseId or category"
         });
@@ -60,36 +84,41 @@ app.get("/api/blur-test", async (req, res) => {
 
     try {
 
-        console.log("blur test api start try");
-
-        // IMPORTANT: Replace API names if different in your Freshdesk
+        // Build Freshdesk query
         const query = `cf_case_id:'${caseId}' AND cf_category:'${category}'`;
 
-        console.log("Freshdesk Query:", query);
+        console.log("🔎 Freshdesk Query:", query);
+        console.log("🔑 API KEY LENGTH:", FRESHDESK_API_KEY.length);
+
+        console.log("📡 Calling Freshdesk API...");
 
         const response = await axios.get(
             `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets`,
             {
                 params: { query },
                 auth: {
-                    username: FRESHDESK_API_KEY,
+                    username: FRESHDESK_API_KEY, // RAW API KEY ONLY
                     password: "X"
                 }
             }
         );
 
+        console.log("✅ Freshdesk API responded");
+
         const results = response.data.results;
+
+        console.log("📊 Result Count:", results.length);
 
         if (results.length > 0) {
 
-            console.log("Duplicate Found");
+            console.log("❌ DUPLICATE FOUND");
 
             return res.json({
                 exists: true
             });
         }
 
-        console.log("No Duplicate");
+        console.log("✅ NO DUPLICATE FOUND");
 
         res.json({
             exists: false
@@ -97,16 +126,21 @@ app.get("/api/blur-test", async (req, res) => {
 
     } catch (error) {
 
-        console.log("blur test api error");
+        console.log("🔥 ERROR calling Freshdesk API");
 
-        console.error("Freshdesk API Error:",
-            error.response?.data || error.message
-        );
+        if (error.response) {
+            console.error("Status:", error.response.status);
+            console.error("Data:", error.response.data);
+        } else {
+            console.error("Error:", error.message);
+        }
 
         res.status(500).json({
             error: "Freshdesk API failed"
         });
     }
+
+    console.log("🟢 /api/blur-test END");
 });
 
 // ================================
@@ -115,9 +149,6 @@ app.get("/api/blur-test", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-console.log("blur test api end");
-
-
 app.listen(PORT, () => {
-    console.log("Server running on port", PORT);
+    console.log("🟢 Server running on port", PORT);
 });
