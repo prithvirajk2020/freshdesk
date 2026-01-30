@@ -87,7 +87,8 @@ app.get("/api/blur-test", async (req, res) => {
     try {
 
         // Build Freshdesk query
-        const query = `cf_case_id:'${caseId}' AND cf_category:'${category}'`;
+        const query = `cf_case_id : '${caseId}' AND cf_category : '${category}'`;
+
 
         console.log("🔎 Freshdesk Query:", query);
         console.log("🔑 API KEY LENGTH:", FRESHDESK_API_KEY.length);
@@ -95,11 +96,10 @@ app.get("/api/blur-test", async (req, res) => {
         console.log("📡 Calling Freshdesk API...");
 
         const response = await axios.get(
-            `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets`,
+            `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets?query=${encodeURIComponent(query)}`,
             {
-                params: { query },
                 headers: {
-                    Authorization: `basic ${FRESHDESK_API_KEY}`,
+                    Authorization: `basic ${FRESHDESK_API_KEY}`
                 }
             }
         );
