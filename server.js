@@ -104,7 +104,7 @@ app.get("/api/blur-test", async (req, res) => {
             }
         );
 
-        console.log("✅ Freshdesk API responded");
+        console.log("✅ Freshdesk API responseeee", response);
 
         const results = response.data.results;
 
