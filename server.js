@@ -66,9 +66,10 @@ app.get("/", (req, res) => {
 app.get("/api/blur-test", async (req, res) => {
 
     console.log("🔵 /api/blur-test START");
+    console.log("QUeryyyyyyy", req);
 
-    const caseId = req.query.caseId || req.query.cf_case_id;
-    const category = req.query.category || req.query.cf_category;
+    const caseId = req?.query.caseId || req?.query.cf_case_id;
+    const category = req?.query.category || req?.query.cf_category;
 
     console.log("Received Params:");
     console.log("caseId:", caseId);
