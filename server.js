@@ -96,7 +96,7 @@ app.get("/api/blur-test", async (req, res) => {
         console.log("📡 Calling Freshdesk API...");
 
         const response = await axios.get(
-            `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets?query=${encodeURIComponent(query)}`,
+            `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets?query="${query}"`,
             {
                 headers: {
                     Authorization: `basic ${FRESHDESK_API_KEY}`
