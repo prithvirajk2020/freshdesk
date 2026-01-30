@@ -138,8 +138,6 @@ app.get("/api/blur-test", async (req, res) => {
 
         res.status(500).json({
             error: "Freshdesk API failed",
-            msg: "query0",
-            query: query
         });
     }
 
