@@ -23,36 +23,37 @@ const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 // IMPORTANT: Must match Freshdesk portal URL
 const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
 
-// Validate ENV
-console.log("ENV CHECK:");
-console.log("FRESHDESK_DOMAIN:", FRESHDESK_DOMAIN ? "OK" : "MISSING");
-console.log("FRESHDESK_API_KEY:", FRESHDESK_API_KEY ? "OK" : "MISSING");
-
 // ================================
-// MIDDLEWARE
+// GLOBAL MIDDLEWARE
 // ================================
 
-// Log all requests
+// Parse JSON body
+app.use(express.json());
+
+// Disable caching (extra safety)
 app.use((req, res, next) => {
-    console.log("➡ Incoming:", req.method, req.originalUrl);
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
-    res.setHeader("Surrogate-Control", "no-store");
+    next();
+});
+
+// Log requests
+app.use((req, res, next) => {
+    console.log("➡ Incoming:", req.method, req.originalUrl);
     next();
 });
 
 // Enable CORS
 app.use(cors({
     origin: ALLOWED_ORIGIN,
-    methods: ["GET", "OPTIONS"],
+    methods: ["POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"]
 }));
 
-// Preflight handler
+// Preflight
 app.use((req, res, next) => {
     if (req.method === "OPTIONS") {
-        console.log("⚡ Preflight OPTIONS request");
         return res.sendStatus(200);
     }
     next();
@@ -64,27 +65,25 @@ app.use((req, res, next) => {
 
 // Health check
 app.get("/", (req, res) => {
-    console.log("🏥 Health Check Hit");
     res.send("Freshdesk Duplicate Validator API Running ✅");
 });
 
-// Validation endpoint
-app.get("/api/blur-test", async (req, res) => {
+// ================================
+// VALIDATION ENDPOINT (POST)
+// ================================
+
+app.post("/api/blur-test", async (req, res) => {
 
     console.log("🔵 /api/blur-test START");
 
-    const caseId = req.query.caseId || req.query.cf_case_id;
-    const category = req.query.category || req.query.cf_category;
+    const caseId = req.body.caseId || req.body.cf_case_id;
+    const category = req.body.category || req.body.cf_category;
 
-    console.log("Received Params:");
+    console.log("Received Body:");
     console.log("caseId:", caseId);
     console.log("category:", category);
 
-    // ✅ Only require CATEGORY now
     if (!category) {
-
-        console.log("❌ Missing category parameter");
-
         return res.status(400).json({
             error: "Missing category"
         });
@@ -99,7 +98,6 @@ app.get("/api/blur-test", async (req, res) => {
         const query = `cf_category : '${category}'`;
 
         console.log("🔎 Freshdesk Query:", query);
-        console.log("📡 Calling Freshdesk API...");
 
         const response = await axios.get(
             `https://${FRESHDESK_DOMAIN}/api/v2/search/tickets?query="${query}"`,
@@ -110,19 +108,16 @@ app.get("/api/blur-test", async (req, res) => {
             }
         );
 
-        console.log("✅ Freshdesk API responded");
-
         const results = response.data.results;
 
         console.log("📊 Category Match Count:", results.length);
 
         // ================================
-        // COMPARE CASE ID LOCALLY
+        // DAILY DUPLICATE CHECK
         // ================================
 
         let duplicateFound = false;
 
-        // Get today's date (YYYY-MM-DD)
         const today = new Date().toISOString().split("T")[0];
 
         console.log("📅 Today's Date:", today);
@@ -132,55 +127,44 @@ app.get("/api/blur-test", async (req, res) => {
             const freshdeskCaseId = ticket.custom_fields?.cf_case_id;
             const createdAt = ticket.created_at;
 
-            // Convert ticket date to YYYY-MM-DD
             const ticketDate = createdAt
                 ? new Date(createdAt).toISOString().split("T")[0]
                 : null;
 
-            console.log("🔎 Checking Ticket");
+            console.log("Checking:");
             console.log("Freshdesk Case ID:", freshdeskCaseId);
-            console.log("User Case ID:", caseId);
             console.log("Ticket Date:", ticketDate);
 
-            // ✅ Match ONLY if:
-            // same case id
-            // AND same day
             if (
                 caseId &&
                 ticketDate === today &&
                 String(freshdeskCaseId).trim() ===
                 String(caseId).trim()
             ) {
-
-                console.log("❌ SAME DAY DUPLICATE FOUND");
                 duplicateFound = true;
             }
         });
 
+        // ================================
+        // RESPONSE
+        // ================================
 
         if (duplicateFound) {
-
-            return res.json({
-                exists: true
-            });
+            return res.json({ exists: true });
         }
 
-        console.log("✅ NO DUPLICATE FOUND");
-
         res.json({
-            exists: false,
-            data: response.data
+            exists: false
         });
 
     } catch (error) {
 
-        console.log("🔥 ERROR calling Freshdesk API");
+        console.log("🔥 Freshdesk API error");
 
         if (error.response) {
-            console.error("Status:", error.response.status);
-            console.error("Data:", error.response.data);
+            console.error(error.response.data);
         } else {
-            console.error("Error:", error.message);
+            console.error(error.message);
         }
 
         res.status(500).json({
