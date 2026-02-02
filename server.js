@@ -35,6 +35,10 @@ console.log("FRESHDESK_API_KEY:", FRESHDESK_API_KEY ? "OK" : "MISSING");
 // Log all requests
 app.use((req, res, next) => {
     console.log("➡ Incoming:", req.method, req.originalUrl);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
     next();
 });
 
