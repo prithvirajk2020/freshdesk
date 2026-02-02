@@ -1,8 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
+
 import express from "express";
 import axios from "axios";
 import cors from "cors";
+
 const app = express();
 
 // ================================
@@ -66,33 +68,33 @@ app.get("/", (req, res) => {
 app.get("/api/blur-test", async (req, res) => {
 
     console.log("🔵 /api/blur-test START");
-    console.log("QUeryyyyyyy", req);
 
-    const caseId = req?.query.caseId || req?.query.cf_case_id;
-    const category = req?.query.category || req?.query.cf_category;
+    const caseId = req.query.caseId || req.query.cf_case_id;
+    const category = req.query.category || req.query.cf_category;
 
     console.log("Received Params:");
     console.log("caseId:", caseId);
     console.log("category:", category);
 
-    if (!caseId || !category) {
+    // ✅ Only require CATEGORY now
+    if (!category) {
 
-        console.log("❌ Missing query parameters");
+        console.log("❌ Missing category parameter");
 
         return res.status(400).json({
-            error: "Missing caseId or category"
+            error: "Missing category"
         });
     }
 
     try {
 
-        // Build Freshdesk query
-        const query = `cf_case_id : '${caseId}' AND cf_category : '${category}'`;
+        // ================================
+        // FILTER ONLY BY CATEGORY
+        // ================================
 
+        const query = `cf_category : '${category}'`;
 
         console.log("🔎 Freshdesk Query:", query);
-        console.log("🔑 API KEY LENGTH:", FRESHDESK_API_KEY.length);
-
         console.log("📡 Calling Freshdesk API...");
 
         const response = await axios.get(
@@ -104,15 +106,39 @@ app.get("/api/blur-test", async (req, res) => {
             }
         );
 
-        console.log("✅ Freshdesk API responseeee", response);
+        console.log("✅ Freshdesk API responded");
 
         const results = response.data.results;
 
-        console.log("📊 Result Count:", results.length);
+        console.log("📊 Category Match Count:", results.length);
 
-        if (results.length > 0) {
+        // ================================
+        // COMPARE CASE ID LOCALLY
+        // ================================
 
-            console.log("❌ DUPLICATE FOUND");
+        let duplicateFound = false;
+
+        results.forEach(ticket => {
+
+            const freshdeskCaseId = ticket.custom_fields?.cf_case_id;
+
+            console.log("🔎 Checking Ticket");
+            console.log("Freshdesk Case ID:", freshdeskCaseId);
+            console.log("User Case ID:", caseId);
+
+            // ✅ Compare only if caseId exists
+            if (
+                caseId &&
+                String(freshdeskCaseId).trim() ===
+                String(caseId).trim()
+            ) {
+
+                console.log("❌ DUPLICATE MATCH FOUND");
+                duplicateFound = true;
+            }
+        });
+
+        if (duplicateFound) {
 
             return res.json({
                 exists: true
@@ -122,7 +148,8 @@ app.get("/api/blur-test", async (req, res) => {
         console.log("✅ NO DUPLICATE FOUND");
 
         res.json({
-            exists: false
+            exists: false,
+            data: response.data
         });
 
     } catch (error) {
@@ -137,7 +164,7 @@ app.get("/api/blur-test", async (req, res) => {
         }
 
         res.status(500).json({
-            error: "Freshdesk API failed",
+            error: "Freshdesk API failed"
         });
     }
 
