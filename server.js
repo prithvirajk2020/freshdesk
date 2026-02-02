@@ -64,10 +64,7 @@ app.get("/", (req, res) => {
     res.send("Freshdesk Duplicate Validator API Running ✅");
 });
 
-// ================================
-// VALIDATION ENDPOINT
-// ================================
-
+// Validation endpoint
 app.get("/api/blur-test", async (req, res) => {
 
     console.log("🔵 /api/blur-test START");
@@ -79,7 +76,7 @@ app.get("/api/blur-test", async (req, res) => {
     console.log("caseId:", caseId);
     console.log("category:", category);
 
-    // Only category is mandatory
+    // ✅ Only require CATEGORY now
     if (!category) {
 
         console.log("❌ Missing category parameter");
@@ -92,7 +89,7 @@ app.get("/api/blur-test", async (req, res) => {
     try {
 
         // ================================
-        // FILTER BY CATEGORY ONLY
+        // FILTER ONLY BY CATEGORY
         // ================================
 
         const query = `cf_category : '${category}'`;
@@ -116,12 +113,12 @@ app.get("/api/blur-test", async (req, res) => {
         console.log("📊 Category Match Count:", results.length);
 
         // ================================
-        // DAILY DUPLICATE CHECK
+        // COMPARE CASE ID LOCALLY
         // ================================
 
         let duplicateFound = false;
 
-        // Get today's UTC date (YYYY-MM-DD)
+        // Get today's date (YYYY-MM-DD)
         const today = new Date().toISOString().split("T")[0];
 
         console.log("📅 Today's Date:", today);
@@ -131,7 +128,7 @@ app.get("/api/blur-test", async (req, res) => {
             const freshdeskCaseId = ticket.custom_fields?.cf_case_id;
             const createdAt = ticket.created_at;
 
-            // Convert Freshdesk ticket date to YYYY-MM-DD
+            // Convert ticket date to YYYY-MM-DD
             const ticketDate = createdAt
                 ? new Date(createdAt).toISOString().split("T")[0]
                 : null;
@@ -141,9 +138,9 @@ app.get("/api/blur-test", async (req, res) => {
             console.log("User Case ID:", caseId);
             console.log("Ticket Date:", ticketDate);
 
-            // BLOCK ONLY IF:
-            // Same Case ID
-            // AND Same Calendar Day
+            // ✅ Match ONLY if:
+            // same case id
+            // AND same day
             if (
                 caseId &&
                 ticketDate === today &&
@@ -152,14 +149,10 @@ app.get("/api/blur-test", async (req, res) => {
             ) {
 
                 console.log("❌ SAME DAY DUPLICATE FOUND");
-
                 duplicateFound = true;
             }
         });
 
-        // ================================
-        // RESPONSE
-        // ================================
 
         if (duplicateFound) {
 
@@ -168,7 +161,7 @@ app.get("/api/blur-test", async (req, res) => {
             });
         }
 
-        console.log("✅ NO DUPLICATE FOUND FOR TODAY");
+        console.log("✅ NO DUPLICATE FOUND");
 
         res.json({
             exists: false,
