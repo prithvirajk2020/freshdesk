@@ -20,7 +20,6 @@ console.log("🚀 Freshdesk Validator Service Starting...");
 const FRESHDESK_DOMAIN = process.env.FRESHDESK_DOMAIN;
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 
-// IMPORTANT: Must match Freshdesk portal URL
 const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
 
 // ================================
@@ -30,17 +29,11 @@ const ALLOWED_ORIGIN = "https://tatvacloud-helpdesk.freshdesk.com";
 // Parse JSON body
 app.use(express.json());
 
-// Disable caching (extra safety)
+// Disable caching
 app.use((req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
-    next();
-});
-
-// Log requests
-app.use((req, res, next) => {
-    console.log("➡ Incoming:", req.method, req.originalUrl);
     next();
 });
 
@@ -51,7 +44,7 @@ app.use(cors({
     allowedHeaders: ["Content-Type"]
 }));
 
-// Preflight
+// Preflight handler
 app.use((req, res, next) => {
     if (req.method === "OPTIONS") {
         return res.sendStatus(200);
@@ -117,10 +110,9 @@ app.post("/api/blur-test", async (req, res) => {
         // ================================
 
         let duplicateFound = false;
+        let duplicateTicketId = null;
 
         const today = new Date().toISOString().split("T")[0];
-
-        console.log("📅 Today's Date:", today);
 
         results.forEach(ticket => {
 
@@ -131,17 +123,15 @@ app.post("/api/blur-test", async (req, res) => {
                 ? new Date(createdAt).toISOString().split("T")[0]
                 : null;
 
-            console.log("Checking:");
-            console.log("Freshdesk Case ID:", freshdeskCaseId);
-            console.log("Ticket Date:", ticketDate);
-
             if (
                 caseId &&
                 ticketDate === today &&
                 String(freshdeskCaseId).trim() ===
                 String(caseId).trim()
             ) {
+
                 duplicateFound = true;
+                duplicateTicketId = ticket.id;
             }
         });
 
@@ -150,7 +140,11 @@ app.post("/api/blur-test", async (req, res) => {
         // ================================
 
         if (duplicateFound) {
-            return res.json({ exists: true });
+
+            return res.json({
+                exists: true,
+                ticket_id: duplicateTicketId
+            });
         }
 
         res.json({
